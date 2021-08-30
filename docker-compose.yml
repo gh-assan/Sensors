@@ -15,6 +15,3 @@ rabbit1:
     NAME: "rabbitmq1"
   volumes:
     - "./enabled_plugins:/etc/rabbitmq/enabled_plugins"
-
-
-    
