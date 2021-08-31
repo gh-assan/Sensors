@@ -3,8 +3,11 @@ package receiver
 import (
 	"log"
 
-	"github.com/streadway/amqp"
+	"gh-assan/rmsq/utils"
 )
+
+const url = "amqp://rabbitmq:rabbitmq@localhost:5672/"
+const queueName = "hello"
 
 func failOnError(err error, msg string) {
 	if err != nil {
@@ -13,32 +16,22 @@ func failOnError(err error, msg string) {
 }
 
 func Receive() {
-	conn, err := amqp.Dial("amqp://rabbitmq:rabbitmq@localhost:5672/")
-	failOnError(err, "Failed to connect to RabbitMQ")
-	defer conn.Close()
 
-	ch, err := conn.Channel()
-	failOnError(err, "Failed to open a channel")
-	defer ch.Close()
+	connection, channel := utils.GetChannel(url)
 
-	q, err := ch.QueueDeclare(
-		"hello", // name
-		false,   // durable
-		false,   // delete when unused
-		false,   // exclusive
-		false,   // no-wait
-		nil,     // arguments
-	)
-	failOnError(err, "Failed to declare a queue")
+	defer connection.Close()
+	defer channel.Close()
 
-	msgs, err := ch.Consume(
-		q.Name, // queue
-		"",     // consumer
-		true,   // auto-ack
-		false,  // exclusive
-		false,  // no-local
-		false,  // no-wait
-		nil,    // args
+	queue := utils.GetQueue(queueName, channel)
+
+	msgs, err := channel.Consume(
+		queue.Name, // queue
+		"",         // consumer
+		true,       // auto-ack
+		false,      // exclusive
+		false,      // no-local
+		false,      // no-wait
+		nil,        // args
 	)
 	failOnError(err, "Failed to register a consumer")
 

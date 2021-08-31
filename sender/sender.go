@@ -4,7 +4,12 @@ import (
 	"log"
 
 	"github.com/streadway/amqp"
+
+	"gh-assan/rmsq/utils"
 )
+
+const url = "amqp://rabbitmq:rabbitmq@localhost:5672/"
+const queueName = "hello"
 
 func failOnError(err error, msg string) {
 	if err != nil {
@@ -13,31 +18,21 @@ func failOnError(err error, msg string) {
 }
 
 func Send() {
-	conn, err := amqp.Dial("amqp://rabbitmq:rabbitmq@localhost:5672/")
-	failOnError(err, "Failed to connect to RabbitMQ")
-	defer conn.Close()
 
-	ch, err := conn.Channel()
-	failOnError(err, "Failed to open a channel")
-	defer ch.Close()
+	connection, channel := utils.GetChannel(url)
 
-	q, err := ch.QueueDeclare(
-		"hello", // name
-		false,   // durable
-		false,   // delete when unused
-		false,   // exclusive
-		false,   // no-wait
-		nil,     // arguments
-	)
-	failOnError(err, "Failed to declare a queue")
+	defer connection.Close()
+	defer channel.Close()
+
+	queue := utils.GetQueue(queueName, channel)
 
 	for {
 		body := "Hello World!"
-		err = ch.Publish(
-			"",     // exchange
-			q.Name, // routing key
-			false,  // mandatory
-			false,  // immediate
+		err := channel.Publish(
+			"",         // exchange
+			queue.Name, // routing key
+			false,      // mandatory
+			false,      // immediate
 			amqp.Publishing{
 				ContentType: "text/plain",
 				Body:        []byte(body),
