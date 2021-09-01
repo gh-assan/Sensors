@@ -1,3 +1,7 @@
 go run sensor/sensorDiscovery.go
 
 go run discovery/sensorDiscovery.go
+
+
+go run sensor/cmd/main.go
+

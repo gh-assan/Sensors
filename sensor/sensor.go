@@ -2,9 +2,7 @@ package sensor
 
 import (
 	"bytes"
-	"distributed/dto"
 	"encoding/gob"
-	"flag"
 	"log"
 	"math/rand"
 	"strconv"
@@ -15,43 +13,62 @@ import (
 	"gh-assan/rmsq/utils"
 )
 
-var url = "amqp://guest:guest@localhost:5672"
+type Sensor struct {
+	Name     string
+	Freq     int
+	Max      float64
+	Min      float64
+	StepSize float64
+	value    float64
+	nom      float64
+	r        *rand.Rand
+}
 
-const SensorDiscoveryQueueName = "SensorDiscovery"
+var url = "amqp://rabbitmq:rabbitmq@localhost:5672/"
 
-var name = flag.String("name", "sensor", "name of the sensor")
-var freq = flag.Uint("freq", 5, "update frequency in cycles/sec")
-var max = flag.Float64("max", 5., "maximum value for generated readings")
-var min = flag.Float64("min", 1., "minimum value for generated readings")
-var stepSize = flag.Float64("step", 0.1, "maximum allowable change per measurement")
+type SensorMessage struct {
+	Name      string
+	Value     float64
+	Timestamp time.Time
+}
 
-var r = rand.New(rand.NewSource(time.Now().UnixNano()))
+func NewSensor(
+	name string,
+	freq int,
+	max float64,
+	min float64,
+	stepSize float64,
+) *Sensor {
 
-var value = r.Float64()*(*max-*min) + *min
-var nom = (*max-*min)/2 + *min
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 
-func main2() {
-	flag.Parse()
+	value := r.Float64()*(max-min) + min
+	nom := (max-min)/2 + min
 
-	conn, ch := utils.GetChannel(url)
-	defer conn.Close()
-	defer ch.Close()
+	sensor := Sensor{
+		Name:     name,
+		Freq:     freq,
+		Max:      max,
+		Min:      min,
+		StepSize: stepSize,
 
-	dataQueue := utils.GetQueue(*name, ch)
+		value: value,
+		nom:   nom,
+		r:     r,
+	}
 
-	publishQueueName(ch)
+	return &sensor
+}
 
-	discoveryQueue := utils.GetQueue("", ch)
-	ch.QueueBind(
-		discoveryQueue.Name,      //name string,
-		"",                       //key string,
-		SensorDiscoveryQueueName, //exchange string,
-		false,                    //noWait bool,
-		nil)                      //args amqp.Table)
+func (sensor *Sensor) SendReading() {
 
-	go listenForDiscoverRequests(discoveryQueue.Name, ch)
+	connection, channel := utils.GetChannel(url)
+	defer connection.Close()
+	defer channel.Close()
 
-	dur, _ := time.ParseDuration(strconv.Itoa(1000/int(*freq)) + "ms")
+	dataQueue := utils.GetQueue(sensor.Name, channel)
+
+	dur, _ := time.ParseDuration(strconv.Itoa(1000/int(sensor.Freq)) + "ms")
 
 	signal := time.Tick(dur)
 
@@ -59,10 +76,11 @@ func main2() {
 	enc := gob.NewEncoder(buf)
 
 	for range signal {
-		calcValue()
-		reading := dto.SensorMessage{
-			Name:      *name,
-			Value:     value,
+
+		sensor.calcValue()
+		reading := SensorMessage{
+			Name:      sensor.Name,
+			Value:     sensor.value,
 			Timestamp: time.Now(),
 		}
 
@@ -74,53 +92,28 @@ func main2() {
 			Body: buf.Bytes(),
 		}
 
-		ch.Publish(
+		channel.Publish(
 			"",             //exchange string,
 			dataQueue.Name, //key string,
 			false,          //mandatory bool,
 			false,          //immediate bool,
 			msg)            //msg amqp.Publishing)
 
-		log.Printf("Reading sent. Value: %v\n", value)
+		log.Printf("Reading sent. Value: %v\n", sensor.value)
 	}
+
 }
 
-func listenForDiscoverRequests(name string, ch *amqp.Channel) {
-	msgs, _ := ch.Consume(
-		name,  //queue string,
-		"",    //consumer string,
-		true,  //autoAck bool,
-		false, //exclusive bool,
-		false, //noLocal bool,
-		false, //noWait bool,
-		nil)   //args amqp.Table)
-
-	for range msgs {
-		log.Println("received discovery request")
-		publishQueueName(ch)
-	}
-}
-
-func publishQueueName(ch *amqp.Channel) {
-	msg := amqp.Publishing{Body: []byte(*name)}
-	ch.Publish(
-		"amq.fanout", //exchange string,
-		"",           //key string,
-		false,        //mandatory bool,
-		false,        //immediate bool,
-		msg)          //msg amqp.Publishing)
-}
-
-func calcValue() {
+func (sensor *Sensor) calcValue() {
 	var maxStep, minStep float64
 
-	if value < nom {
-		maxStep = *stepSize
-		minStep = -1 * *stepSize * (value - *min) / (nom - *min)
+	if sensor.value < sensor.nom {
+		maxStep = sensor.StepSize
+		minStep = -1 * sensor.StepSize * (sensor.value - sensor.Min) / (sensor.nom - sensor.Min)
 	} else {
-		maxStep = *stepSize * (*max - value) / (*max - nom)
-		minStep = -1 * *stepSize
+		maxStep = sensor.StepSize * (sensor.Max - sensor.value) / (sensor.Max - sensor.nom)
+		minStep = -1 * sensor.StepSize
 	}
 
-	value += r.Float64()*(maxStep-minStep) + minStep
+	sensor.value += sensor.r.Float64()*(maxStep-minStep) + minStep
 }

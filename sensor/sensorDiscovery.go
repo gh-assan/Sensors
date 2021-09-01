@@ -1,7 +1,6 @@
-package main
+package sensor
 
 import (
-	"flag"
 	"log"
 
 	"github.com/streadway/amqp"
@@ -9,36 +8,26 @@ import (
 	"gh-assan/rmsq/utils"
 )
 
-var url = "amqp://rabbitmq:rabbitmq@localhost:5672/"
-
 const SensorDiscoveryActions = "SensorDiscoveryActions"
 const SensorDiscoveryData = "SensorDiscoveryData"
 
-var name = flag.String("name", "sensor", "name of the sensor")
-
-// func start()
-
-func main() {
-
-	flag.Parse()
-
+func (sensor *Sensor) HandleDiscovery() {
 	connection, channel := utils.GetChannel(url)
 	defer connection.Close()
 	defer channel.Close()
 
-	sendQueueName(channel)
+	sensor.sendQueueName(channel)
 
 	connectionExchange, channelExchange := utils.GetChannelForExchange(url, SensorDiscoveryActions)
 	defer connectionExchange.Close()
 	defer channelExchange.Close()
 
-	go listenForDiscoverRequests(SensorDiscoveryActions, channelExchange, channel)
+	go sensor.listenForDiscoverRequests(SensorDiscoveryActions, channelExchange, channel)
 
 	select {}
-
 }
 
-func listenForDiscoverRequests(exchange string, exchangeChannel *amqp.Channel, channel *amqp.Channel) {
+func (sensor *Sensor) listenForDiscoverRequests(exchange string, exchangeChannel *amqp.Channel, channel *amqp.Channel) {
 
 	queue := utils.GetQueueForExchange(exchange, exchangeChannel)
 
@@ -53,12 +42,12 @@ func listenForDiscoverRequests(exchange string, exchangeChannel *amqp.Channel, c
 
 	for range msgs {
 		log.Println("received discovery request")
-		sendQueueName(channel)
+		sensor.sendQueueName(channel)
 	}
 }
 
-func sendQueueName(channel *amqp.Channel) {
-	msg := amqp.Publishing{Body: []byte(*name)}
+func (sensor *Sensor) sendQueueName(channel *amqp.Channel) {
+	msg := amqp.Publishing{Body: []byte(sensor.Name)}
 	queue := utils.GetQueue(SensorDiscoveryData, channel)
 	channel.Publish(
 		"",         //exchange string,
