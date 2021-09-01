@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"time"
 
 	"github.com/streadway/amqp"
 
@@ -15,12 +16,15 @@ const SensorDiscoveryData = "SensorDiscoveryData"
 
 func main() {
 
-	connection, channel := utils.GetChannel(url)
+	connection, channel := utils.GetChannelForExchange(url, SensorDiscoveryActions)
 	defer connection.Close()
 	defer channel.Close()
 
-	sendDiscoveryRequest(channel)
+	signal := time.Tick(5 * time.Second)
 
+	for range signal {
+		sendDiscoveryRequest(channel)
+	}
 	// discoveryQueue := utils.GetQueue(SensorDiscoveryData, channel)
 	// channel.QueueBind(
 	// 	discoveryQueue.Name, //name string,
@@ -31,7 +35,7 @@ func main() {
 
 	// go listenForDiscoverRequests(SensorDiscoveryActions, channel)
 
-	select {}
+	// select {}
 
 }
 
@@ -53,13 +57,12 @@ func main() {
 
 func sendDiscoveryRequest(channel *amqp.Channel) {
 	msg := amqp.Publishing{Body: []byte(`{action:"status"}`)}
-	queue := utils.GetQueue(SensorDiscoveryActions, channel)
 	log.Println("sending discovery request")
 	channel.Publish(
-		"",         //exchange string,
-		queue.Name, //key string,
-		false,      //mandatory bool,
-		false,      //immediate bool,
-		msg)        //msg amqp.Publishing)
+		SensorDiscoveryActions, //exchange string,
+		"",                     //key string,
+		false,                  //mandatory bool,
+		false,                  //immediate bool,
+		msg)                    //msg amqp.Publishing)
 	log.Println("sent discovery request")
 }

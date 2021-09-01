@@ -28,29 +28,28 @@ func main() {
 
 	sendQueueName(channel)
 
-	// discoveryQueue := utils.GetQueue(SensorDiscoveryData, channel)
-	// channel.QueueBind(
-	// 	discoveryQueue.Name, //name string,
-	// 	"",                  //key string,
-	// 	SensorDiscoveryQueueName, //exchange string,
-	// 	false, //noWait bool,
-	// 	nil)   //args amqp.Table)
+	connectionExchange, channelExchange := utils.GetChannelForExchange(url, SensorDiscoveryActions)
+	defer connectionExchange.Close()
+	defer channelExchange.Close()
 
-	go listenForDiscoverRequests(SensorDiscoveryActions, channel)
+	go listenForDiscoverRequests(SensorDiscoveryActions, channelExchange, channel)
 
 	select {}
 
 }
 
-func listenForDiscoverRequests(name string, channel *amqp.Channel) {
-	msgs, _ := channel.Consume(
-		SensorDiscoveryActions, //queue string,
-		"",                     //consumer string,
-		true,                   //autoAck bool,
-		false,                  //exclusive bool,
-		false,                  //noLocal bool,
-		false,                  //noWait bool,
-		nil)                    //args amqp.Table)
+func listenForDiscoverRequests(exchange string, exchangeChannel *amqp.Channel, channel *amqp.Channel) {
+
+	queue := utils.GetQueueForExchange(exchange, exchangeChannel)
+
+	msgs, _ := exchangeChannel.Consume(
+		queue.Name, //queue string,
+		"",         //consumer string,
+		true,       //autoAck bool,
+		false,      //exclusive bool,
+		false,      //noLocal bool,
+		false,      //noWait bool,
+		nil)        //args amqp.Table)
 
 	for range msgs {
 		log.Println("received discovery request")
