@@ -1,4 +1,4 @@
-package main
+package discovery
 
 import (
 	"log"
@@ -9,12 +9,17 @@ import (
 	"gh-assan/rmsq/utils"
 )
 
-var url = "amqp://rabbitmq:rabbitmq@localhost:5672/"
-
 const SensorDiscoveryActions = "SensorDiscoveryActions"
 const SensorDiscoveryData = "SensorDiscoveryData"
 
-func main() {
+type SensorDiscovery struct {
+}
+
+func NewSensorDiscovery() *SensorDiscovery {
+	return &SensorDiscovery{}
+}
+
+func (sensorDiscovery *SensorDiscovery) Start() {
 
 	go func() {
 		connection, channel := utils.GetChannelForExchange(url, SensorDiscoveryActions)
@@ -35,18 +40,18 @@ func main() {
 		defer channelDiscovery.Close()
 
 		discoveryQueue := utils.GetQueue(SensorDiscoveryData, channelDiscovery)
-		// channel.QueueBind(
-		// 	discoveryQueue.Name, //name string,
-		// 	"",                  //key string,
-		// 	SensorDiscoveryQueueName, //exchange string,
-		// 	false, //noWait bool,
-		// 	nil)   //args amqp.Table)
 
 		listenForDiscoverRespone(channelDiscovery, discoveryQueue.Name)
 		select {}
 	}()
 	select {}
 
+}
+
+func listenForSensorData(sensorName string) {
+	sensorListener := NewSensorListener(sensorName)
+
+	sensorListener.Start()
 }
 
 func listenForDiscoverRespone(channel *amqp.Channel, queueName string) {
@@ -61,7 +66,7 @@ func listenForDiscoverRespone(channel *amqp.Channel, queueName string) {
 
 	for msg := range msgs {
 		log.Println("received discovery request", string(msg.Body))
-		// sendQueueName(channel)
+		go listenForSensorData(string(msg.Body))
 	}
 }
 

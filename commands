@@ -5,3 +5,11 @@ go run discovery/sensorDiscovery.go
 
 go run sensor/cmd/main.go
 
+go run discovery/cmd/main.go
+
+
+
+go run sensor/cmd/main.go -name s1
+go run sensor/cmd/main.go -name s2
+go run sensor/cmd/main.go -name s3
+go run sensor/cmd/main.go -name s4 -freq 5
