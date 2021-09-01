@@ -16,44 +16,54 @@ const SensorDiscoveryData = "SensorDiscoveryData"
 
 func main() {
 
-	connection, channel := utils.GetChannelForExchange(url, SensorDiscoveryActions)
-	defer connection.Close()
-	defer channel.Close()
+	go func() {
+		connection, channel := utils.GetChannelForExchange(url, SensorDiscoveryActions)
+		defer connection.Close()
+		defer channel.Close()
 
-	signal := time.Tick(5 * time.Second)
+		signal := time.Tick(5 * time.Second)
 
-	for range signal {
-		sendDiscoveryRequest(channel)
-	}
-	// discoveryQueue := utils.GetQueue(SensorDiscoveryData, channel)
-	// channel.QueueBind(
-	// 	discoveryQueue.Name, //name string,
-	// 	"",                  //key string,
-	// 	SensorDiscoveryQueueName, //exchange string,
-	// 	false, //noWait bool,
-	// 	nil)   //args amqp.Table)
+		for range signal {
+			sendDiscoveryRequest(channel)
+		}
+	}()
 
-	// go listenForDiscoverRequests(SensorDiscoveryActions, channel)
+	go func() {
 
-	// select {}
+		connectionDiscovery, channelDiscovery := utils.GetChannel(url)
+		defer connectionDiscovery.Close()
+		defer channelDiscovery.Close()
+
+		discoveryQueue := utils.GetQueue(SensorDiscoveryData, channelDiscovery)
+		// channel.QueueBind(
+		// 	discoveryQueue.Name, //name string,
+		// 	"",                  //key string,
+		// 	SensorDiscoveryQueueName, //exchange string,
+		// 	false, //noWait bool,
+		// 	nil)   //args amqp.Table)
+
+		listenForDiscoverRespone(channelDiscovery, discoveryQueue.Name)
+		select {}
+	}()
+	select {}
 
 }
 
-// func listenForDiscoverRequests(name string, channel *amqp.Channel) {
-// 	msgs, _ := channel.Consume(
-// 		SensorDiscoveryActions, //queue string,
-// 		"",                     //consumer string,
-// 		true,                   //autoAck bool,
-// 		false,                  //exclusive bool,
-// 		false,                  //noLocal bool,
-// 		false,                  //noWait bool,
-// 		nil)                    //args amqp.Table)
+func listenForDiscoverRespone(channel *amqp.Channel, queueName string) {
+	msgs, _ := channel.Consume(
+		queueName, //queue string,
+		"",        //consumer string,
+		true,      //autoAck bool,
+		false,     //exclusive bool,
+		false,     //noLocal bool,
+		false,     //noWait bool,
+		nil)       //args amqp.Table)
 
-// 	for range msgs {
-// 		log.Println("received discovery request")
-// 		sendQueueName(channel)
-// 	}
-// }
+	for msg := range msgs {
+		log.Println("received discovery request", string(msg.Body))
+		// sendQueueName(channel)
+	}
+}
 
 func sendDiscoveryRequest(channel *amqp.Channel) {
 	msg := amqp.Publishing{Body: []byte(`{action:"status"}`)}
