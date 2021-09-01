@@ -18,9 +18,9 @@ func main() {
 
 	sensor := sensor.NewSensor(*name, *freq, *max, *min, *stepSize)
 
-	// sensor.SendReading()
+	go sensor.SendReading()
 
-	sensor.HandleDiscovery()
+	go sensor.HandleDiscovery()
 
 	select {}
 }
