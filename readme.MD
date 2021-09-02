@@ -27,22 +27,22 @@ The application has 2 main component : sensors and discovery
 
 Make sure that golang is installed on your machine
 
-* ```docker-compose up -d``` 
+* ```docker-compose up -d``` \
   right now, only rabbitmq is dockerized
 
 
 * in the root directory of the project run 
-  ```go run discovery/cmd/main.go```
-  and this will run the discovery component 
+  ```go run discovery/cmd/main.go```\
+  and this will run the discovery component
 
 
-* in the root directory of the project run in new terminals  
+* in the root directory of the project run in new terminals   
 
     
-    ```go run sensor/cmd/main.go -name sensor1```
-    ```go run sensor/cmd/main.go -name sensor2```
-    ```go run sensor/cmd/main.go -name sensor3```
-    ```go run sensor/cmd/main.go -name sensor4 -freq 5```
+    ```go run sensor/cmd/main.go -name sensor1``` \
+    ```go run sensor/cmd/main.go -name sensor2``` \
+    ```go run sensor/cmd/main.go -name sensor3``` \
+    ```go run sensor/cmd/main.go -name sensor4 -freq 5``` 
 
 
 Those command will run and register 4 sensors to the system
