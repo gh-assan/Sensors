@@ -32,6 +32,7 @@ Make sure that golang is installed on your machine
 
 
 * in the root directory of the project run 
+
   ```go run discovery/cmd/main.go```\
   and this will run the discovery component
 
